@@ -23,3 +23,12 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Ignore Python cache directories
+__pycache__/
+
+# Ignore any folder named matches
+matches/
+
+# Ignore all zip files
+*.zip
