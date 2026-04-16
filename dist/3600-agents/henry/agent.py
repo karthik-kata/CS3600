@@ -23,7 +23,7 @@ class PlayerAgent:
         """
         Optional: Prints out commentary at the end of the game.
         """
-        return "Search complete. Good game."
+        return "Good game :D"
 
     def play(
         self,

@@ -1,6 +1,7 @@
 import numpy as np
 from typing import Tuple
 from game.enums import Cell, Noise, BOARD_SIZE
+from game.board import Board
 
 class RatHMM:
     """
@@ -47,7 +48,7 @@ class RatHMM:
         # Apply the 1000 steps instantly
         self.belief = np.dot(initial_state, self.T_1000)
 
-    def predict_and_update(self, board, player_pos: Tuple[int, int], noise: Noise, distance_estimate: int):
+    def predict_and_update(self, board: Board, player_pos: Tuple[int, int], noise: Noise, distance_estimate: int):
         """
         Predicts the rat's movement for the current turn and updates belief based on sensor data.
         """
