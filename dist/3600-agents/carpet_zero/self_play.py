@@ -97,8 +97,8 @@ def play_single_game(process_id: int, model_weights_path: str) -> List[Tuple]:
     hmm_a = RatHMM(T_matrix)
     hmm_b = RatHMM(T_matrix)
     
-    mcts_a = AlphaZeroMCTS(model, serializer, num_simulations=75, c_puct=1.25, temperature=1.0)
-    mcts_b = AlphaZeroMCTS(model, serializer, num_simulations=75, c_puct=1.25, temperature=1.0)
+    mcts_a = AlphaZeroMCTS(model, serializer, num_simulations=100, c_puct=1.25, temperature=1.0)
+    mcts_b = AlphaZeroMCTS(model, serializer, num_simulations=100, c_puct=1.25, temperature=1.0)
 
     board = Board(time_to_play=240, build_history=False)
     rat = Rat(T_matrix)
@@ -185,18 +185,44 @@ def play_single_game(process_id: int, model_weights_path: str) -> List[Tuple]:
         if not board.is_game_over():
             board.reverse_perspective()
 
-    winner = board.get_winner()
+    if board.is_player_a_turn:
+        final_points_a = board.player_worker.get_points()
+        final_points_b = board.opponent_worker.get_points()
+    else:
+        final_points_a = board.opponent_worker.get_points()
+        final_points_b = board.player_worker.get_points()
+
     training_data = []
     
     for spatial, scalar, policy, is_player_a in game_history:
-        value = 0.0
-        if winner == Result.TIE:
-            value = 0.0
-        elif (winner == Result.PLAYER and is_player_a) or (winner == Result.ENEMY and not is_player_a):
-            value = 1.0
+        # 1. Calculate the final point differential from the perspective 
+        # of the player who made this specific move.
+        if is_player_a:
+            point_diff = final_points_a - final_points_b
         else:
-            value = -1.0
+            point_diff = final_points_b - final_points_a
             
+        # 2. Binary Win/Loss Signal
+        # Maintains the fundamental drive to win the game.
+        if point_diff > 0:
+            win_signal = 1.0
+        elif point_diff < 0:
+            win_signal = -1.0
+        else:
+            win_signal = 0.0
+            
+        # 3. Margin of Victory Signal
+        # We use np.tanh to bound the differential between [-1.0, 1.0].
+        # A divisor of 20.0 means a 21-point lead (equivalent to a length-7 carpet) 
+        # will yield a strong margin signal of ~0.78.
+        margin_signal = float(np.tanh(point_diff / 20.0))
+        
+        # 4. Blended Value Target
+        # 50% weight on actually winning, 50% weight on maximizing the point gap.
+        # This prevents the bot from playing passively when it has a tiny lead, 
+        # while strongly punishing it for missing the rat and losing 2 points.
+        value = 0.5 * win_signal + 0.5 * margin_signal
+        
         training_data.append((spatial, scalar, policy, value))
 
     return training_data
@@ -209,6 +235,7 @@ def train_alphazero(num_iterations: int = 50, games_per_iter: int = 100, epochs:
     
     model_path = "best_model.pth"
     if os.path.exists(model_path):
+        print("model loaded")
         model.load_state_dict(torch.load(model_path))
 
     num_cores = max(1, mp.cpu_count() - 1)

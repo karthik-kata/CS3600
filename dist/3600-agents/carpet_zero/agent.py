@@ -33,8 +33,9 @@ class PlayerAgent:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = CarpetZeroNet()
         
-        model_path = "iter48_best_model.pth"
+        model_path = "testbest_model.pth"
         if os.path.exists(model_path):
+            print("loaded")
             self.model.load_state_dict(torch.load(model_path))
         
         self.model.to(self.device)
