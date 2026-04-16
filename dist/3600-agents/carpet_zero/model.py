@@ -24,7 +24,7 @@ class ResidualBlock(nn.Module):
         return F.relu(out)
 
 class CarpetZeroNet(nn.Module):
-    def __init__(self, spatial_channels: int = 8, scalar_features: int = 6, 
+    def __init__(self, spatial_channels: int = 9, scalar_features: int = 6, 
                  hidden_channels: int = 128, num_res_blocks: int = 8, 
                  board_size: int = 8, num_actions: int = 36):
         super().__init__()

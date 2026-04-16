@@ -5,32 +5,37 @@ import numpy as np
 from typing import Callable, Tuple
 
 # 1. Path fix for the 'game' module
-# This ensures that when the engine runs your agent, it can find the engine's game logic.
 current_dir = os.path.dirname(os.path.abspath(__file__))
 project_root = os.path.abspath(os.path.join(current_dir, "../../"))
 if project_root not in sys.path:
     sys.path.append(project_root)
 
-# Standard game imports [cite: 71-73]
+# Standard game imports
 from game.board import Board
 from game.enums import Noise
 from game.move import Move
 
-# 2. Relative imports for your local files 
-# These REQUIRE the __init__.py and for the agent to be loaded as a package.
-from .model import CarpetZeroNet
-from .serializer import StateSerializer
-from .hmm import RatHMM
-from .mcts import AlphaZeroMCTS
+# --- POLYGLOT IMPORT FIX ---
+# This allows the bot to work inside the tournament engine AND as a standalone script.
+try:
+    from .model import CarpetZeroNet
+    from .serializer import StateSerializer
+    from .hmm import RatHMM
+    from .mcts import AlphaZeroMCTS
+except (ImportError, ValueError):
+    from model import CarpetZeroNet
+    from serializer import StateSerializer
+    from hmm import RatHMM
+    from mcts import AlphaZeroMCTS
 
 class PlayerAgent:
     def __init__(self, board: Board, transition_matrix=None, time_left: Callable = None):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.model = CarpetZeroNet()
         
-        weights_path = os.path.join(os.path.dirname(__file__), "best_model.pth")
-        if os.path.exists(weights_path):
-            self.model.load_state_dict(torch.load(weights_path, map_location=self.device))
+        model_path = "iter48_best_model.pth"
+        if os.path.exists(model_path):
+            self.model.load_state_dict(torch.load(model_path))
         
         self.model.to(self.device)
         self.model.eval()
@@ -50,7 +55,7 @@ class PlayerAgent:
         # --- HARDWARE BENCHMARK ---
         # Replace this with the result from tune_time.py
         # E.g., if 100 sims takes 1.5 seconds, sims_per_second = 66
-        self.sims_per_second = 66.0
+        self.sims_per_second = 1500.0
 
     def commentate(self):
         return "Decoupled AlphaZero initialized. Managing clock dynamically."
@@ -103,6 +108,6 @@ class PlayerAgent:
         self.mcts.num_simulations = max(50, min(dynamic_sims, 800))
 
         # 5. Standard MCTS Execution
-        best_move, _ = self.mcts.search(board)
+        best_move, _ = self.mcts.search(board, belief_array)
 
         return best_move

@@ -42,12 +42,12 @@ class AlphaZeroMCTS:
         self.device = next(model.parameters()).device
 
     @torch.no_grad()
-    def _evaluate_and_expand(self, node: 'MCTSNode', board: Board):
+    def _evaluate_and_expand(self, node: 'MCTSNode', board: Board, hmm_belief: np.ndarray):
         """
         Uses the Neural Network to evaluate the leaf node and expand it with valid moves.
         """
         # 1. Serialize the state (no HMM belief required)
-        spatial_tensor, scalar_tensor = self.serializer.serialize_single(board)
+        spatial_tensor, scalar_tensor = self.serializer.serialize_single(board, hmm_belief)
         spatial_tensor = spatial_tensor.to(self.device)
         scalar_tensor = scalar_tensor.to(self.device)
 
@@ -91,14 +91,14 @@ class AlphaZeroMCTS:
         
         return value
 
-    def search(self, initial_board: Board) -> Tuple[Move, np.ndarray]:
+    def search(self, initial_board: Board, initial_hmm_belief: np.ndarray) -> Tuple[Move, np.ndarray]:
         """
         Executes the MCTS loop and returns the best move and the policy distribution.
         """
         root = MCTSNode(parent=None, prior_prob=1.0)
         
         # Evaluate and expand the root node immediately
-        self._evaluate_and_expand(root, initial_board)
+        self._evaluate_and_expand(root, initial_board, initial_hmm_belief)
 
         # Add Dirichlet noise to the root node to encourage exploration during self-play
         valid_actions = list(root.children.keys())
@@ -123,7 +123,7 @@ class AlphaZeroMCTS:
                 sim_board.reverse_perspective()
             
             # Phase 2 & 3: Evaluation and Expansion
-            value = self._evaluate_and_expand(node, sim_board)
+            value = self._evaluate_and_expand(node, sim_board, initial_hmm_belief)
 
             # Phase 4: Backpropagation
             # If the perspective was flipped an odd number of times, we must negate the value
@@ -141,6 +141,12 @@ class AlphaZeroMCTS:
             policy_target[best_action] = 1.0
         else:
             # Stochastic selection (Self-play training mode)
+            
+            # --- NEW NUMERICAL STABILITY FIX ---
+            max_visits = np.max(action_visits)
+            if max_visits > 0:
+                # Scale everything down to [0.0, 1.0] before applying the massive exponent
+                action_visits = action_visits / max_visits             
             action_visits = action_visits ** (1.0 / self.temperature)
             policy_sum = np.sum(action_visits)
             if policy_sum > 0:

@@ -17,7 +17,7 @@ class StateSerializer:
             arr[coord[1], coord[0]] = 1.0
         return arr
 
-    def serialize_single(self, board: Board) -> tuple[torch.Tensor, torch.Tensor]:
+    def serialize_single(self, board: Board, hmm_belief: np.ndarray) -> tuple[torch.Tensor, torch.Tensor]:
         # Now only 8 spatial channels
         spatial_channels = np.stack([
             self._coord_to_array(board.player_worker.get_location()),
@@ -27,7 +27,8 @@ class StateSerializer:
             self._bitboard_to_array(board._primed_mask),
             self._bitboard_to_array(board._carpet_mask),
             self._coord_to_array(board.player_search[0]),
-            self._coord_to_array(board.opponent_search[0])
+            self._coord_to_array(board.opponent_search[0]),
+            hmm_belief.astype(np.float32) # <-- Added 9th channel
         ])
         
         scalar_features = np.array([
