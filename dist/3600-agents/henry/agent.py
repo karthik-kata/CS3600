@@ -31,8 +31,6 @@ class PlayerAgent:
             my_loc = my_worker.get_location()
 
             # --- 1. Synchronize the Hidden Markov Model ---
-            # The game engine defaults the tuple to (None, False) if no search occurs, 
-            # so we must explicitly check if index 0 has a valid coordinate.
             player_searched = board.player_search[0] is not None
             player_caught = board.player_search[1] if player_searched else False
             
@@ -40,30 +38,25 @@ class PlayerAgent:
             opp_caught = board.opponent_search[1] if opp_searched else False
             
             if opp_caught:
-            # Rat was caught by opponent, respawned, and took 1000 moves[cite: 55, 56].
-            # The 1 move for our turn is handled in predict_and_update.
                 self.hmm.reset()
             elif player_caught:
-                # We caught it last turn. It respawned and took 1000 moves.
                 self.hmm.reset()
-                # Account for the 1 move the rat took before the opponent's turn.
+                # FIX: Advance rat 1 step FOR the opponent's turn, THEN register their miss
+                self.hmm.belief = np.dot(self.hmm.belief, self.hmm.T)
                 if opp_searched and not opp_caught:
                     self.hmm.register_miss(board.opponent_search[0])
-                self.hmm.belief = np.dot(self.hmm.belief, self.hmm.T)
             else:
-                # Normal turn-by-turn synchronization.
                 if self.is_first_turn:
                     if board.turn_count == 1: 
-                        # We are Player B. Advance HMM once for Player A's Turn 0[cite: 16, 48].
+                        # FIX: Advance rat, then register miss
+                        self.hmm.belief = np.dot(self.hmm.belief, self.hmm.T)
                         if opp_searched and not opp_caught:
                             self.hmm.register_miss(board.opponent_search[0])
-                        self.hmm.belief = np.dot(self.hmm.belief, self.hmm.T)
                 else:
-                    # Synchronize for the opponent's turn that just finished.
-                    # We already accounted for our previous turn's rat move in the last play() call.
+                    # FIX: Advance rat, then register miss
+                    self.hmm.belief = np.dot(self.hmm.belief, self.hmm.T)
                     if opp_searched and not opp_caught:
                         self.hmm.register_miss(board.opponent_search[0])
-                    self.hmm.belief = np.dot(self.hmm.belief, self.hmm.T)
 
             self.is_first_turn = False
 
@@ -82,7 +75,8 @@ class PlayerAgent:
                 max_time=allocated_time,
                 is_player_a=my_worker.is_player_a,
                 rat_belief=self.hmm.belief,
-                respawn_belief=self.hmm.default_respawn_belief
+                respawn_belief=self.hmm.default_respawn_belief,
+                hmm_trans = self.hmm.T
             )
 
             return best_move

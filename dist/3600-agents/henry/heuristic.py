@@ -112,7 +112,7 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
     # 1. Point Differential (Primary Objective)
     score = (my_worker.get_points() - opp_worker.get_points()) * 100
     
-    """  
+    
     # 2. Vectorized Board Potential
     buildable_mask = board._space_mask | board._primed_mask
     
@@ -146,6 +146,6 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
             
             expected_rat_value = max_prob * 200             
             score += expected_rat_value / (dist_me_rat + 1.0)
-            score -= expected_rat_value / (dist_opp_rat + 1.0)  """
+            score -= expected_rat_value / (dist_opp_rat + 1.0) 
             
     return score
