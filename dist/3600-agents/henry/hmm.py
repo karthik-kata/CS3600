@@ -15,7 +15,8 @@ class RatHMM:
         
         # Pre-compute the 1000-step transition matrix for the initial headstart 
         # when a rat spawns, for immediate initialization efficiency.
-        self.T_1000 = np.linalg.matrix_power(self.T, 1000)
+        T_1000_full = np.linalg.matrix_power(self.T, 1000)
+        self.default_respawn_belief = T_1000_full[0, :]
         
         # Noise emission probabilities: P(noise | cell_type)
         # Ordered as (Squeak, Scratch, Squeal) corresponding to enums.Noise
@@ -42,11 +43,9 @@ class RatHMM:
         Resets the belief state when a new rat is spawned (at game start or after capture).
         The rat spawns at (0, 0) and instantly takes 1000 hidden steps.
         """
-        initial_state = np.zeros(self.num_states, dtype=np.float64)
-        initial_state[0] = 1.0  # Rat always spawns at (0, 0)
         
         # Apply the 1000 steps instantly
-        self.belief = np.dot(initial_state, self.T_1000)
+        self.belief = np.copy(self.default_respawn_belief)
 
     def predict_and_update(self, board: Board, player_pos: Tuple[int, int], noise: Noise, distance_estimate: int):
         """
@@ -113,3 +112,18 @@ class RatHMM:
         """
         idx = loc[1] * BOARD_SIZE + loc[0]
         return float(self.belief[idx])
+    
+    def register_miss(self, loc: Tuple[int, int]):
+        """
+        Zeros out the probability at the given location and renormalizes.
+        Called when a player searches a cell and the rat is not there.
+        """
+        idx = loc[1] * BOARD_SIZE + loc[0]
+        self.belief[idx] = 0.0
+        
+        total_prob = np.sum(self.belief)
+        if total_prob > 0:
+            self.belief /= total_prob
+        else:
+            # Fallback uniform distribution
+            self.belief = np.ones(self.num_states, dtype=np.float64) / self.num_states
