@@ -2,6 +2,54 @@ import numpy as np
 from game.board import Board
 from game.enums import BOARD_SIZE
 
+import numpy as np
+from game.board import Board
+from game.enums import BOARD_SIZE
+
+def _compute_territory_potential(board: Board, px: int, py: int, ox: int, oy: int) -> float:
+    """
+    Vectorized implementation of the base attractiveness and adjacency weighting,
+    evaluated dynamically via a continuous distance gradient.
+    """
+    # 1. Extract and binarize the board masks
+    shifts = np.arange(64, dtype=np.uint64)
+    
+    def to_grid(mask):
+        return ((np.uint64(mask) >> shifts) & np.uint64(1)).reshape((BOARD_SIZE, BOARD_SIZE)).astype(bool)
+
+    primed = to_grid(board._primed_mask)
+    space = to_grid(board._space_mask)
+    carpet = to_grid(board._carpet_mask)
+    
+    # 2. Assign Base Weights
+    attr = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=np.float64)
+    attr[primed] = 2.0
+    attr[space] = 1.0
+    attr[carpet] = 0.1
+    
+    # 3. Calculate Adjacency Boost (0.6 per PRIMED neighbor)
+    neighbors = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=int)
+    neighbors[:, :-1] += primed[:, 1:]  # right
+    neighbors[:, 1:] += primed[:, :-1]  # left
+    neighbors[:-1, :] += primed[1:, :]  # down
+    neighbors[1:, :] += primed[:-1, :]  # up
+    
+    # Apply the boost only to cells that have a base attractiveness > 0
+    valid_mask = attr > 0
+    boosted_attr = np.copy(attr)
+    boosted_attr[valid_mask] += (neighbors[valid_mask] * 0.6)
+    
+    # 4. Continuous Distance Weighting
+    y_coords, x_coords = np.mgrid[0:BOARD_SIZE, 0:BOARD_SIZE]
+    dist_p = np.abs(x_coords - px) + np.abs(y_coords - py)
+    dist_o = np.abs(x_coords - ox) + np.abs(y_coords - oy)
+    
+    # Weighting: Closer cells exert a stronger gravitational pull on the score
+    my_potential = np.sum(boosted_attr / (dist_p + 1.0))
+    opp_potential = np.sum(boosted_attr / (dist_o + 1.0))
+    
+    return float(my_potential - opp_potential)
+
 def _compute_reachability(buildable_mask: int, px: int, py: int, ox: int, oy: int) -> float:
     """
     Standard NumPy function for fast vectorized reachability evaluation.
@@ -62,8 +110,9 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
     opp_loc = opp_worker.get_location()
         
     # 1. Point Differential (Primary Objective)
-    score = (my_worker.get_points() - opp_worker.get_points()) * 75.0
+    score = (my_worker.get_points() - opp_worker.get_points()) * 100
     
+    """  
     # 2. Vectorized Board Potential
     buildable_mask = board._space_mask | board._primed_mask
     
@@ -73,7 +122,16 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
         opp_loc[0], opp_loc[1]
     )
     
-    score += reachability_diff * 25.0
+    score += reachability_diff * 10
+
+    
+    territory_diff = _compute_territory_potential(
+        board, my_loc[0], my_loc[1], opp_loc[0], opp_loc[1]
+    )
+        
+    score += territory_diff * 2
+    
+    
     
     # 3. Rat Hunting Potential
     if rat_belief is not None:
@@ -86,9 +144,8 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
             dist_me_rat = abs(my_loc[0] - rx) + abs(my_loc[1] - ry)
             dist_opp_rat = abs(opp_loc[0] - rx) + abs(opp_loc[1] - ry)
             
-            expected_rat_value = max_prob * 100 
-            
+            expected_rat_value = max_prob * 200             
             score += expected_rat_value / (dist_me_rat + 1.0)
-            score -= expected_rat_value / (dist_opp_rat + 1.0)
+            score -= expected_rat_value / (dist_opp_rat + 1.0)  """
             
     return score
