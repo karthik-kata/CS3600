@@ -101,7 +101,7 @@ def expectiminimax(
                 p_hit = rat_belief[move.search_loc[1] * BOARD_SIZE + move.search_loc[0]] if rat_belief is not None else 0.0
                 
                 # OPTIMIZATION 1: Prune guaranteed search misses
-                if p_hit <= 0.001: 
+                if p_hit <= 0.15: 
                     continue
                     
                 p_miss = 1.0 - p_hit
@@ -175,7 +175,7 @@ def expectiminimax(
                 p_hit = rat_belief[move.search_loc[1] * BOARD_SIZE + move.search_loc[0]] if rat_belief is not None else 0.0
                 
                 # OPTIMIZATION 1: Prune guaranteed search misses
-                if p_hit <= 0.001: 
+                if p_hit <= 0.15: 
                     continue
 
                 p_miss = 1.0 - p_hit
