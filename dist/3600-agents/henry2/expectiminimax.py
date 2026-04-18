@@ -82,7 +82,17 @@ def expectiminimax(
     if depth == 0 or board.is_game_over():
         return evaluate_board(board, is_player_a, rat_belief), None
 
-    moves = board.get_valid_moves(enemy=False, exclude_search=False)
+    moves = board.get_valid_moves(enemy=False, exclude_search=True)
+    if rat_belief is not None:
+        best_rat_idx = int(np.argmax(rat_belief))
+        best_rat_prob = rat_belief[best_rat_idx]
+        
+        # Add it if it's profitable OR if we are completely trapped (escape valve)
+        if best_rat_prob > 0.10 or len(moves) == 0:
+            rx = best_rat_idx % BOARD_SIZE
+            ry = best_rat_idx // BOARD_SIZE
+            moves.append(Move.search((rx, ry)))
+            
     tt_best = tt_entry['best_move'] if tt_entry else None
     moves = order_moves(board, moves, tt_best, is_player_a, is_maximizing, rat_belief)
     
@@ -99,10 +109,6 @@ def expectiminimax(
 
             if move.move_type == MoveType.SEARCH:
                 p_hit = rat_belief[move.search_loc[1] * BOARD_SIZE + move.search_loc[0]] if rat_belief is not None else 0.0
-                
-                # OPTIMIZATION 1: Prune guaranteed search misses
-                if p_hit <= 0.15: 
-                    continue
                     
                 p_miss = 1.0 - p_hit
                 eval_hit = 0.0
@@ -175,8 +181,6 @@ def expectiminimax(
                 p_hit = rat_belief[move.search_loc[1] * BOARD_SIZE + move.search_loc[0]] if rat_belief is not None else 0.0
                 
                 # OPTIMIZATION 1: Prune guaranteed search misses
-                if p_hit <= 0.15: 
-                    continue
 
                 p_miss = 1.0 - p_hit
                 eval_hit = 0.0

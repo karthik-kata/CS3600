@@ -49,7 +49,7 @@ def _compute_reachability(space_mask: int, primed_mask: int, px: int, py: int, o
     # Give PRIMED a significantly higher base weight so that lines with more primed tiles scale harder.
     val = np.zeros((BOARD_SIZE, BOARD_SIZE), dtype=np.float64)
     val[space] = 1.0
-    val[primed] = 3.0  
+    val[primed] = 3.0   #CHANGE THIS FOR
     
     # 3. Vectorized Line Integration
     # Accumulate the total value of contiguous segments in all four directions.
@@ -125,7 +125,7 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
     opp_loc = opp_worker.get_location()
         
     # 1. Point Differential (Primary Objective)
-    point_diff = (my_worker.get_points() - opp_worker.get_points()) * 100
+    point_diff = (my_worker.get_points() - opp_worker.get_points())
     
     
     # 2. Vectorized Board Potential
@@ -160,7 +160,7 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
         rat_score -= expected_rat_value / (dist_opp_rat + 1.0) 
         
     
-    score = point_diff * 100 + reachability_diff * 30 + territory_diff * 10 + rat_score * 5
+    score = point_diff * 10000 + reachability_diff * 50 + territory_diff * 1 + rat_score * 20
 
     
     #print("point_diff: ", point_diff , "reach:", reachability_diff, "terr", territory_diff, "rat:", rat_score)
