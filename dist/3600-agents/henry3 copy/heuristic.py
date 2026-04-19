@@ -211,7 +211,7 @@ def evaluate_board(board: Board, is_player_a: bool, rat_belief: np.ndarray = Non
         rat_score -= expected_rat_value / (dist_opp_rat + 1.0) 
         
         """
-    score = point_diff * 5 + reachability_diff * 1 + carpet_diff * 0.6 # + rat_score * 0
+    score = point_diff * 5 + reachability_diff * 1 + carpet_diff * 0.4 # + rat_score * 0
     
     #print("point_diff: ", point_diff , "reach:", reachability_diff, "terr", territory_diff, "rat:", rat_score)
             
